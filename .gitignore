@@ -1,0 +1,22 @@
+# Compiled Java class files
+*.class
+bin/
+out/
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Temporary and log files
+*.tmp
+*.log
+*.swp
+.DS_Store
+
+# Persistence data generated at runtime
+data/*.tmp
