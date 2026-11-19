@@ -1,0 +1,9 @@
+id,name,type,breed,ageMonths,price,status,microchipId,lastVaccine,lastVaccineDate,extra1,extra2
+101,Milo,DOG,Golden Retriever,14,850.00,AVAILABLE,CHIP-101,Rabies + DHPP,2026-10-15,true,Sporting
+102,Luna,CAT,Siamese,42,600.00,AVAILABLE,CHIP-102,FVRCP,2026-09-20,true,false
+103,Rocky,DOG,German Shepherd,24,950.00,AVAILABLE,CHIP-103,Bordetella,2026-08-11,true,Herding
+104,Bella,CAT,Persian,18,750.00,AVAILABLE,CHIP-104,FVRCP,2026-07-04,true,true
+105,Rio,BIRD,Macaw,36,1200.00,AVAILABLE,CHIP-105,Polyomavirus,2026-06-12,85.5,true
+106,Charlie,DOG,Beagle,8,550.00,AVAILABLE,CHIP-106,DHPP,2026-11-01,false,Hound
+107,Oliver,CAT,Maine Coon,30,800.00,QUARANTINE,CHIP-107,Deworming,2026-11-10,false,false
+108,Kiwi,BIRD,Cockatiel,12,320.00,AVAILABLE,CHIP-108,,2026-05-18,32.0,true
