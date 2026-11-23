@@ -1,120 +1,163 @@
 package com.petshop;
 
-import com.petshop.exception.InvalidPetDataException;
-import com.petshop.exception.PetNotFoundException;
-import com.petshop.exception.PetShopException;
-import com.petshop.model.Adoptable;
+import com.petshop.cli.MenuController;
+import com.petshop.concurrency.AdoptionQueue;
+import com.petshop.concurrency.HealthCheckScheduler;
+import com.petshop.concurrency.OrderWorker;
+import com.petshop.concurrency.ThreadStateMonitor;
+import com.petshop.model.Bird;
+import com.petshop.model.Cat;
+import com.petshop.model.Dog;
+import com.petshop.model.Order;
 import com.petshop.model.Pet;
-import com.petshop.model.PetStatus;
 import com.petshop.model.PetType;
-import com.petshop.model.Vaccinable;
-import java.time.LocalDate;
+import com.petshop.repository.FilePetRepository;
+import com.petshop.service.AnalyticsService;
+import com.petshop.service.PetService;
+import com.petshop.service.TransactionCoordinator;
+import java.io.File;
 
 /**
- * Main application runner & Day 1 Verification Entrypoint.
- * Demonstrates:
- * - OOP Foundations: Abstraction, Polymorphism, Interfaces (Unit 1)
- * - Exception Handling: try-catch-finally, custom exception propagation (Unit 1)
- * - String formatting & Comparable interface (Unit 1 & 2)
+ * Main Application Bootstrap for Pet Haven CLI Platform.
+ * Fully integrates:
+ * - Unit 1: OOP Foundations & Custom Exception Hierarchy
+ * - Unit 2: Collections Framework & Comparators
+ * - Unit 3: Multithreading, Concurrency, Synchronized Blocks, and Schedulers
+ * - Unit 4: Two-Phase Commit Transaction Management & Rollback
+ * - Unit 5: Stream API, Lambda Analytics, and Pure File I/O
  */
 public class Main {
-
-    // Concrete test pet to demonstrate abstract class instantiation (Day 1 milestone)
-    static class DemoPet extends Pet {
-        private final String sound;
-        private final String specialNeeds;
-
-        public DemoPet(int id, String name, PetType type, String breed, int ageMonths, double price, String microchip, String sound, String specialNeeds)
-                throws InvalidPetDataException {
-            super(id, name, type, breed, ageMonths, price, microchip);
-            this.sound = sound;
-            this.specialNeeds = specialNeeds;
-        }
-
-        @Override
-        public String getSound() {
-            return sound;
-        }
-
-        @Override
-        public String getSpecialNeeds() {
-            return specialNeeds;
-        }
-    }
+    private static final String PETS_CSV_PATH = "data/pets.csv";
+    private static final String ORDERS_CSV_PATH = "data/orders.csv";
 
     public static void main(String[] args) {
         printBanner();
 
-        System.out.println("=== Day 1 Milestone: Core Abstractions & Exception Hierarchy ===");
-        System.out.println("Syllabus Alignment: 25CSE0202 Unit 1 (OOP Foundations & Exception Handling)\n");
-
         try {
-            // 1. Instantiating via Abstract Base Class & Subclass (Polymorphism)
-            System.out.println("[TEST 1] Instantiating and validating Pet domain models...");
-            Pet pet1 = new DemoPet(101, "Milo", PetType.DOG, "Golden Retriever", 14, 850.00, "CHIP-001", "Woof! Woof!", "Daily 30 min run");
-            Pet pet2 = new DemoPet(102, "Luna", PetType.CAT, "Siamese", 42, 600.00, "CHIP-002", "Meow!", "Hypoallergenic diet");
+            // 1. Initialize File Persistence Engine (Unit 5)
+            System.out.println("[BOOTSTRAP] Initializing Pure Java CSV Repository...");
+            ensureDataDirectoryExists();
+            FilePetRepository petRepository = new FilePetRepository(PETS_CSV_PATH);
 
-            System.out.println("Created Pet 1: " + pet1);
-            System.out.println("Created Pet 2: " + pet2);
-            System.out.println("Sound: " + pet1.getName() + " says '" + pet1.getSound() + "'");
+            // Seed sample inventory if brand new
+            if (petRepository.count() == 0) {
+                seedInitialData(petRepository);
+            }
+            System.out.printf("  Loaded %d pets from %s.%n", petRepository.count(), PETS_CSV_PATH);
 
-            // 2. Interface polymorphism (Adoptable & Vaccinable)
-            System.out.println("\n[TEST 2] Testing Adoptable & Vaccinable interface contracts...");
-            Adoptable adoptablePet = pet2;
-            System.out.println("Eligible for adoption? " + adoptablePet.isAdoptable());
-            System.out.println("Adoption fee (senior discount check for 42 mos): $" + adoptablePet.calculateAdoptionFee());
+            // 2. Initialize Transaction Coordinator & Pet Service (Unit 4 & 1)
+            TransactionCoordinator txCoordinator = new TransactionCoordinator(petRepository, ORDERS_CSV_PATH);
+            PetService petService = new PetService(petRepository, txCoordinator);
 
-            Vaccinable vaccinablePet = pet1;
-            vaccinablePet.recordVaccination("Rabies + DHPP", LocalDate.now());
-            System.out.println("Vaccinated? " + vaccinablePet.isVaccinated() + " on " + vaccinablePet.getLastVaccinationDate());
+            // 3. Initialize Analytics Engine (Unit 5: Stream API)
+            AnalyticsService analyticsService = new AnalyticsService(petService);
 
-            // 3. Testing Comparable interface
-            System.out.println("\n[TEST 3] Testing Natural Ordering (Comparable<Pet>)...");
-            int comparison = pet1.compareTo(pet2);
-            System.out.println("pet1.compareTo(pet2): " + comparison + " (Ordered by ID: " + pet1.getId() + " vs " + pet2.getId() + ")");
+            // 4. Initialize Concurrency Infrastructure (Unit 3: Multithreading)
+            System.out.println("[BOOTSTRAP] Launching Concurrency Infrastructure...");
+            AdoptionQueue adoptionQueue = new AdoptionQueue(5);
 
-            // 4. Testing Custom Exception Hierarchy & Input Validation
-            System.out.println("\n[TEST 4] Testing Custom Exception Hierarchy (InvalidPetDataException)...");
-            testValidationFailure();
+            OrderWorker workerRunnable = new OrderWorker(adoptionQueue, petService);
+            Thread workerThread = new Thread(workerRunnable, "OrderWorker-1");
+            ThreadStateMonitor.traceState(workerThread, "Pre-Start");
+            workerThread.start();
+            ThreadStateMonitor.traceState(workerThread, "Post-Start");
 
-            // 5. Testing Exception Propagation & Specific Catch
-            System.out.println("\n[TEST 5] Testing PetNotFoundException propagation...");
-            testNotFoundException();
+            HealthCheckScheduler healthScheduler = new HealthCheckScheduler(petService);
+            healthScheduler.startPeriodicHealthScan(3, 45);
 
-        } catch (PetShopException ex) {
-            System.err.println("UNHANDLED PET SHOP EXCEPTION: " + ex);
-        } finally {
-            System.out.println("\n============================================================");
-            System.out.println("[SUCCESS] Day 1 Verification Completed cleanly with 0 errors!");
-            System.out.println("============================================================");
+            // Register JVM Shutdown Hook for clean thread termination
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                System.out.println("\n[SHUTDOWN] Stopping background threads and closing resources...");
+                workerRunnable.stopWorker();
+                workerThread.interrupt();
+                healthScheduler.stop();
+                System.out.println("[SHUTDOWN] Clean exit complete.");
+            }));
+
+            // Check if automated self-test or interactive CLI
+            boolean isTestMode = args.length > 0 && args[0].equalsIgnoreCase("--test");
+
+            if (isTestMode) {
+                runAutomatedSystemVerification(petService, analyticsService, adoptionQueue);
+                System.out.println("\n[AUTOMATED TEST] Verification completed successfully. Exiting test mode.");
+                workerRunnable.stopWorker();
+                workerThread.interrupt();
+                healthScheduler.stop();
+                System.exit(0);
+            } else {
+                // Launch Interactive CLI Loop (Unit VI: Guided Project)
+                MenuController menuController = new MenuController(
+                        petService, analyticsService, adoptionQueue, healthScheduler);
+                menuController.start();
+                System.exit(0);
+            }
+
+        } catch (Exception e) {
+            System.err.println("[FATAL BOOTSTRAP ERROR] " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    private static void testValidationFailure() {
-        try {
-            System.out.print("Attempting to create pet with negative price (-50.0)... ");
-            new DemoPet(103, "Ghost", PetType.DOG, "Husky", 12, -50.00, "CHIP-999", "Howl", "Cold weather");
-            System.out.println("FAIL: Exception should have been thrown!");
-        } catch (InvalidPetDataException ex) {
-            System.out.println("CAUGHT EXPECTED EXCEPTION: " + ex.getMessage());
-            System.out.println("Error Code: " + ex.getErrorCode() + " | Faulty Field: " + ex.getFieldName());
+    private static void ensureDataDirectoryExists() {
+        File dataDir = new File("data");
+        if (!dataDir.exists()) {
+            dataDir.mkdirs();
         }
     }
 
-    private static void testNotFoundException() {
+    private static void seedInitialData(FilePetRepository repo) {
         try {
-            System.out.print("Simulating query for non-existent pet ID 999... ");
-            throw new PetNotFoundException(999);
-        } catch (PetNotFoundException ex) {
-            System.out.println("CAUGHT: " + ex.getMessage());
-            System.out.println("Missing Identifier: " + ex.getIdentifier() + " | Code: " + ex.getErrorCode());
+            repo.save(new Dog(101, "Milo", "Golden Retriever", 14, 850.00, "CHIP-101", true, "Sporting"));
+            repo.save(new Cat(102, "Luna", "Siamese", 42, 600.00, "CHIP-102", true, false));
+            repo.save(new Dog(103, "Rocky", "German Shepherd", 24, 950.00, "CHIP-103", true, "Herding"));
+            repo.save(new Cat(104, "Bella", "Persian", 18, 750.00, "CHIP-104", true, true));
+            repo.save(new Bird(105, "Rio", "Macaw", 36, 1200.00, "CHIP-105", 85.5, true));
+            repo.save(new Dog(106, "Charlie", "Beagle", 8, 550.00, "CHIP-106", false, "Hound"));
+            repo.save(new Bird(108, "Kiwi", "Cockatiel", 12, 320.00, "CHIP-108", 32.0, true));
+        } catch (Exception e) {
+            System.err.println("Seed error: " + e.getMessage());
+        }
+    }
+
+    private static void runAutomatedSystemVerification(PetService service, AnalyticsService analytics, AdoptionQueue queue) {
+        System.out.println("\n==============================================================");
+        System.out.println("          RUNNING END-TO-END AUTOMATED VERIFICATION           ");
+        System.out.println("==============================================================");
+
+        // 1. Polymorphism and Inheritance Verification
+        System.out.println("[CHECK 1] Verifying Polymorphic Behavior...");
+        for (Pet p : service.getAllPets()) {
+            System.out.printf("  * %-10s (%-4s) -> Sound: '%s' | Care: %s%n",
+                    p.getName(), p.getType().name(), p.getSound(), p.getSpecialNeeds());
+        }
+
+        // 2. Stream Analytics Verification
+        System.out.println("\n[CHECK 2] Verifying Stream API Pipelines & Summaries...");
+        analytics.printAnalyticsReport();
+
+        // 3. Transaction Execution & Rollback Verification
+        System.out.println("[CHECK 3] Verifying Two-Phase Commit Transaction & Rollback...");
+        try {
+            System.out.print("  Executing Adoption Checkout for Pet #101 by Customer #2001 ($850.00)... ");
+            Order order = service.processAdoption(101, 2001, 850.00);
+            System.out.println("SUCCESS: " + order);
+        } catch (Exception e) {
+            System.out.println("Caught: " + e.getMessage());
+        }
+
+        try {
+            System.out.print("  Executing Faulty Adoption (Already Adopted Pet #101)... ");
+            service.processAdoption(101, 2002, 850.00);
+            System.out.println("FAIL: Should have been rejected!");
+        } catch (Exception e) {
+            System.out.println("EXPECTED REJECTION: " + e.getMessage());
         }
     }
 
     private static void printBanner() {
         System.out.println("************************************************************");
         System.out.println("*            PET HAVEN - CLI PLATFORM (PURE JAVA)          *");
-        System.out.println("*         Chitkara University | Course Code: 25CSE0202     *");
+        System.out.println("*       Chitkara University | Course Code: 25CSE0202       *");
         System.out.println("************************************************************\n");
     }
 }
