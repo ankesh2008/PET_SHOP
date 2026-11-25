@@ -4,7 +4,6 @@ import com.petshop.cli.MenuController;
 import com.petshop.concurrency.AdoptionQueue;
 import com.petshop.concurrency.HealthCheckScheduler;
 import com.petshop.concurrency.OrderWorker;
-import com.petshop.concurrency.ThreadStateMonitor;
 import com.petshop.model.Bird;
 import com.petshop.model.Cat;
 import com.petshop.model.Dog;
@@ -31,11 +30,8 @@ public class Main {
     private static final String ORDERS_CSV_PATH = "data/orders.csv";
 
     public static void main(String[] args) {
-        printBanner();
-
         try {
             // 1. Initialize File Persistence Engine (Unit 5)
-            System.out.println("[BOOTSTRAP] Initializing Pure Java CSV Repository...");
             ensureDataDirectoryExists();
             FilePetRepository petRepository = new FilePetRepository(PETS_CSV_PATH);
 
@@ -43,7 +39,6 @@ public class Main {
             if (petRepository.count() == 0) {
                 seedInitialData(petRepository);
             }
-            System.out.printf("  Loaded %d pets from %s.%n", petRepository.count(), PETS_CSV_PATH);
 
             // 2. Initialize Transaction Coordinator & Pet Service (Unit 4 & 1)
             TransactionCoordinator txCoordinator = new TransactionCoordinator(petRepository, ORDERS_CSV_PATH);
@@ -53,14 +48,11 @@ public class Main {
             AnalyticsService analyticsService = new AnalyticsService(petService);
 
             // 4. Initialize Concurrency Infrastructure (Unit 3: Multithreading)
-            System.out.println("[BOOTSTRAP] Launching Concurrency Infrastructure...");
             AdoptionQueue adoptionQueue = new AdoptionQueue(5);
 
             OrderWorker workerRunnable = new OrderWorker(adoptionQueue, petService);
             Thread workerThread = new Thread(workerRunnable, "OrderWorker-1");
-            ThreadStateMonitor.traceState(workerThread, "Pre-Start");
             workerThread.start();
-            ThreadStateMonitor.traceState(workerThread, "Post-Start");
 
             HealthCheckScheduler healthScheduler = new HealthCheckScheduler(petService);
             healthScheduler.startPeriodicHealthScan(3, 45);
@@ -154,10 +146,4 @@ public class Main {
         }
     }
 
-    private static void printBanner() {
-        System.out.println("************************************************************");
-        System.out.println("*            PET HAVEN - CLI PLATFORM (PURE JAVA)          *");
-        System.out.println("*       Chitkara University | Course Code: 25CSE0202       *");
-        System.out.println("************************************************************\n");
-    }
 }

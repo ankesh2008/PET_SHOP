@@ -7,7 +7,6 @@ import com.petshop.model.Customer;
 import com.petshop.model.Pet;
 import com.petshop.model.comparator.PetPriceComparator;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;

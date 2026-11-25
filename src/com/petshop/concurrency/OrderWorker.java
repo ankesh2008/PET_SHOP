@@ -22,9 +22,6 @@ public class OrderWorker implements Runnable {
 
     @Override
     public void run() {
-        System.out.printf("  [WORKER] %s started and listening for adoption orders.%n",
-                Thread.currentThread().getName());
-
         while (running) {
             try {
                 AdoptionRequest req = adoptionQueue.dequeue();
