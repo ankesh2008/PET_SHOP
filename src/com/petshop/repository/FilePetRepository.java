@@ -43,7 +43,7 @@ public class FilePetRepository implements Repository<Pet, Integer> {
         loadFromFile();
     }
 
-    public synchronized void loadFromFile() throws PetShopException {
+    public void loadFromFile() throws PetShopException {
         cache.clear();
         if (!dataFile.exists()) {
             return;
@@ -73,7 +73,7 @@ public class FilePetRepository implements Repository<Pet, Integer> {
         }
     }
 
-    public synchronized void saveToFile() throws PetShopException {
+    public void saveToFile() throws PetShopException {
         // try-with-resources with BufferedWriter (Syllabus Unit 5)
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(dataFile))) {
             writer.write(CSV_HEADER);
@@ -90,7 +90,7 @@ public class FilePetRepository implements Repository<Pet, Integer> {
     }
 
     @Override
-    public synchronized Pet save(Pet pet) throws PetShopException {
+    public Pet save(Pet pet) throws PetShopException {
         if (pet == null) throw new PetShopException("Cannot save null pet", "ERR_NULL");
         cache.put(pet.getId(), pet);
         saveToFile();
@@ -98,18 +98,18 @@ public class FilePetRepository implements Repository<Pet, Integer> {
     }
 
     @Override
-    public synchronized Optional<Pet> findById(Integer id) {
+    public Optional<Pet> findById(Integer id) {
         if (id == null) return Optional.empty();
         return Optional.ofNullable(cache.get(id));
     }
 
     @Override
-    public synchronized List<Pet> findAll() {
+    public List<Pet> findAll() {
         return new ArrayList<>(cache.values());
     }
 
     @Override
-    public synchronized boolean deleteById(Integer id) throws PetShopException {
+    public boolean deleteById(Integer id) throws PetShopException {
         if (!cache.containsKey(id)) {
             throw new PetNotFoundException(id);
         }
@@ -119,12 +119,12 @@ public class FilePetRepository implements Repository<Pet, Integer> {
     }
 
     @Override
-    public synchronized boolean existsById(Integer id) {
+    public boolean existsById(Integer id) {
         return id != null && cache.containsKey(id);
     }
 
     @Override
-    public synchronized long count() {
+    public long count() {
         return cache.size();
     }
 

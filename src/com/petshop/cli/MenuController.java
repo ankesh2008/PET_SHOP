@@ -1,8 +1,5 @@
 package com.petshop.cli;
 
-import com.petshop.concurrency.AdoptionQueue;
-import com.petshop.concurrency.AdoptionRequest;
-import com.petshop.concurrency.HealthCheckScheduler;
 import com.petshop.exception.InvalidPetDataException;
 import com.petshop.exception.PetShopException;
 import com.petshop.model.Bird;
@@ -11,6 +8,7 @@ import com.petshop.model.Customer;
 import com.petshop.model.Dog;
 import com.petshop.model.Order;
 import com.petshop.model.Pet;
+import com.petshop.model.PetStatus;
 import com.petshop.model.PetType;
 import com.petshop.model.comparator.PetPriceComparator;
 import com.petshop.service.AnalyticsService;
@@ -28,16 +26,11 @@ import java.util.Scanner;
 public class MenuController {
     private final PetService petService;
     private final AnalyticsService analyticsService;
-    private final AdoptionQueue adoptionQueue;
-    private final HealthCheckScheduler healthScheduler;
     private final Scanner scanner;
 
-    public MenuController(PetService petService, AnalyticsService analyticsService,
-                          AdoptionQueue adoptionQueue, HealthCheckScheduler healthScheduler) {
+    public MenuController(PetService petService, AnalyticsService analyticsService) {
         this.petService = petService;
         this.analyticsService = analyticsService;
-        this.adoptionQueue = adoptionQueue;
-        this.healthScheduler = healthScheduler;
         this.scanner = new Scanner(System.in);
     }
 
@@ -45,7 +38,7 @@ public class MenuController {
         boolean exit = false;
         while (!exit) {
             printMainMenu();
-            int choice = InputValidator.readInt(scanner, "Enter selection (1-9): ", 1, 9);
+            int choice = InputValidator.readInt(scanner, "Enter selection (1-8): ", 1, 8);
             System.out.println();
 
             switch (choice) {
@@ -53,11 +46,10 @@ public class MenuController {
                 case 2 -> handleRegisterPet();
                 case 3 -> handleRegisterCustomer();
                 case 4 -> handleAdoptPet();
-                case 5 -> handleAsynchronousAdoption();
+                case 5 -> handleHealthScan();
                 case 6 -> analyticsService.printAnalyticsReport();
-                case 7 -> handleQueueAndHealthStatus();
-                case 8 -> handleSearchPet();
-                case 9 -> {
+                case 7 -> handleSearchPet();
+                case 8 -> {
                     System.out.println("Thank you for using Pet Haven CLI Platform. Goodbye!");
                     exit = true;
                 }
@@ -74,11 +66,10 @@ public class MenuController {
         System.out.println("  [2] Register New Pet (Dog, Cat, Bird)");
         System.out.println("  [3] Register New Customer");
         System.out.println("  [4] Synchronous Adoption Checkout (ACID Transaction)");
-        System.out.println("  [5] Asynchronous Adoption Queue (Producer-Consumer Concurrency)");
+        System.out.println("  [5] Run Pet Health Scan");
         System.out.println("  [6] Stream API Analytics & Financial Valuation");
-        System.out.println("  [7] Health Scan & Background Worker Status");
-        System.out.println("  [8] Search Pet by ID or Microchip");
-        System.out.println("  [9] Exit Application");
+        System.out.println("  [7] Search Pet by ID or Microchip");
+        System.out.println("  [8] Exit Application");
         System.out.println("==============================================================");
     }
 
@@ -174,27 +165,13 @@ public class MenuController {
         }
     }
 
-    private void handleAsynchronousAdoption() {
-        System.out.println("--- Submit Adoption to Concurrent Producer-Consumer Queue ---");
-        int petId = InputValidator.readInt(scanner, "Enter Pet ID: ", 1, 99999);
-        int custId = InputValidator.readInt(scanner, "Enter Customer ID: ", 1, 99999);
-        double payment = InputValidator.readDouble(scanner, "Enter Payment ($): ", 0.0, 100000.0);
-
-        AdoptionRequest request = new AdoptionRequest(petId, custId, payment);
-        try {
-            adoptionQueue.enqueue(request);
-            System.out.println("  [ENQUEUED] Request dispatched to background OrderWorker queue.\n");
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.err.println("  [ERROR] Queue submission interrupted.");
-        }
-    }
-
-    private void handleQueueAndHealthStatus() {
-        System.out.println("--- Concurrency & Health Status ---");
-        System.out.printf("Adoption Queue Buffer : %d / %d items%n",
-                adoptionQueue.size(), adoptionQueue.getCapacity());
-        healthScheduler.performScan();
+    private void handleHealthScan() {
+        System.out.println("--- Pet Health Scan ---");
+        List<Pet> pets = petService.getAllPets();
+        long quarantineCount = pets.stream().filter(p -> p.getStatus() == PetStatus.QUARANTINE).count();
+        long unvaxCount = pets.stream().filter(p -> !p.isVaccinated()).count();
+        System.out.printf("%n  [HEALTH SCAN @ %s] Inventory Check: %d pets | Quarantine: %d | Awaiting Vaccine: %d%n",
+                java.time.LocalTime.now().withNano(0), pets.size(), quarantineCount, unvaxCount);
         System.out.println();
     }
 

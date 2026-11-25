@@ -15,15 +15,12 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Service Layer coordinating domain logic, thread-safe adoption, and transactional operations (Unit 1, 3, 4).
+ * Service Layer coordinating domain logic and transactional operations (Unit 1, 4).
  */
 public class PetService {
     private final FilePetRepository petRepository;
     private final TransactionCoordinator transactionCoordinator;
     private final Map<Integer, Customer> customerRegistry = new HashMap<>();
-
-    // Lock object for inventory critical sections (Syllabus Unit 3: Intrinsic Locks)
-    private final Object inventoryLock = new Object();
 
     public PetService(FilePetRepository petRepository, TransactionCoordinator transactionCoordinator) {
         this.petRepository = petRepository;
@@ -43,21 +40,15 @@ public class PetService {
     }
 
     public Pet registerPet(Pet pet) throws PetShopException {
-        synchronized (inventoryLock) {
-            return petRepository.save(pet);
-        }
+        return petRepository.save(pet);
     }
 
     public Optional<Pet> getPetById(int id) {
-        synchronized (inventoryLock) {
-            return petRepository.findById(id);
-        }
+        return petRepository.findById(id);
     }
 
     public List<Pet> getAllPets() {
-        synchronized (inventoryLock) {
-            return petRepository.findAll();
-        }
+        return petRepository.findAll();
     }
 
     public Customer registerCustomer(String name, String phone, String email) throws InvalidPetDataException {
@@ -75,33 +66,31 @@ public class PetService {
     }
 
     /**
-     * Adopts a pet thread-safely inside a critical section protected by inventoryLock.
+     * Processes an adoption and its file transaction in the calling thread.
      */
     public Order processAdoption(int petId, int customerId, double payment) throws PetShopException {
-        synchronized (inventoryLock) {
-            Pet pet = petRepository.findById(petId)
-                    .orElseThrow(() -> new PetNotFoundException(petId));
+        Pet pet = petRepository.findById(petId)
+                .orElseThrow(() -> new PetNotFoundException(petId));
 
-            Customer customer = customerRegistry.get(customerId);
-            if (customer == null) {
-                throw new PetShopException("Customer #" + customerId + " is not registered.", "ERR_CUST_NOT_FOUND");
-            }
-
-            if (!pet.isAdoptable()) {
-                throw new InsufficientStockException(petId, pet.getStatus().name());
-            }
-
-            double requiredFee = pet.calculateAdoptionFee();
-            if (payment < requiredFee) {
-                throw new InvalidPetDataException("payment",
-                        String.format("Insufficient payment: $%.2f provided, $%.2f required.", payment, requiredFee));
-            }
-
-            String txId = "TX-" + System.currentTimeMillis();
-            Order order = transactionCoordinator.executeAdoptionTransaction(txId, pet, customerId, payment);
-
-            customer.incrementAdoptionCount();
-            return order;
+        Customer customer = customerRegistry.get(customerId);
+        if (customer == null) {
+            throw new PetShopException("Customer #" + customerId + " is not registered.", "ERR_CUST_NOT_FOUND");
         }
+
+        if (!pet.isAdoptable()) {
+            throw new InsufficientStockException(petId, pet.getStatus().name());
+        }
+
+        double requiredFee = pet.calculateAdoptionFee();
+        if (payment < requiredFee) {
+            throw new InvalidPetDataException("payment",
+                    String.format("Insufficient payment: $%.2f provided, $%.2f required.", payment, requiredFee));
+        }
+
+        String txId = "TX-" + System.currentTimeMillis();
+        Order order = transactionCoordinator.executeAdoptionTransaction(txId, pet, customerId, payment);
+
+        customer.incrementAdoptionCount();
+        return order;
     }
 }

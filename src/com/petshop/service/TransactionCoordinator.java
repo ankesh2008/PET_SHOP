@@ -37,7 +37,7 @@ public class TransactionCoordinator {
      * 3. Appends completed order to orders.csv
      * 4. If any step fails, rolls back memory state and cleans temp files.
      */
-    public synchronized Order executeAdoptionTransaction(String txId, Pet pet, int customerId, double amountPaid)
+    public Order executeAdoptionTransaction(String txId, Pet pet, int customerId, double amountPaid)
             throws TransactionFailedException {
         File dataFile = petRepository.getDataFile();
         File tempFile = new File(dataFile.getAbsolutePath() + ".tmp");
@@ -95,7 +95,7 @@ public class TransactionCoordinator {
         }
     }
 
-    private synchronized void appendOrderRecord(Order order) throws IOException {
+    private void appendOrderRecord(Order order) throws IOException {
         boolean isNew = !ordersFile.exists() || ordersFile.length() == 0;
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(ordersFile, true))) {
             if (isNew) {

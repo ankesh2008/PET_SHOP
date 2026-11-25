@@ -33,7 +33,7 @@ public class InMemoryPetRepository implements Repository<Pet, Integer> {
     private final PriorityQueue<Customer> adoptionWaitlist = new PriorityQueue<>();
 
     @Override
-    public synchronized Pet save(Pet pet) throws PetShopException {
+    public Pet save(Pet pet) throws PetShopException {
         if (pet == null) {
             throw new PetShopException("Cannot save null pet", "ERR_NULL_ENTITY");
         }
@@ -62,18 +62,18 @@ public class InMemoryPetRepository implements Repository<Pet, Integer> {
     }
 
     @Override
-    public synchronized Optional<Pet> findById(Integer id) {
+    public Optional<Pet> findById(Integer id) {
         if (id == null) return Optional.empty();
         return Optional.ofNullable(petMap.get(id));
     }
 
     @Override
-    public synchronized List<Pet> findAll() {
+    public List<Pet> findAll() {
         return new ArrayList<>(petMap.values());
     }
 
     @Override
-    public synchronized boolean deleteById(Integer id) throws PetShopException {
+    public boolean deleteById(Integer id) throws PetShopException {
         Pet removed = petMap.remove(id);
         if (removed == null) {
             throw new PetNotFoundException(id);
@@ -84,32 +84,32 @@ public class InMemoryPetRepository implements Repository<Pet, Integer> {
     }
 
     @Override
-    public synchronized boolean existsById(Integer id) {
+    public boolean existsById(Integer id) {
         return id != null && petMap.containsKey(id);
     }
 
     @Override
-    public synchronized long count() {
+    public long count() {
         return petMap.size();
     }
 
-    public synchronized List<Pet> getPetsSortedByPrice() {
+    public List<Pet> getPetsSortedByPrice() {
         return new ArrayList<>(priceSortedSet);
     }
 
-    public synchronized void addToWaitlist(Customer customer) {
+    public void addToWaitlist(Customer customer) {
         adoptionWaitlist.offer(customer);
     }
 
-    public synchronized Customer pollNextWaitlistCustomer() {
+    public Customer pollNextWaitlistCustomer() {
         return adoptionWaitlist.poll();
     }
 
-    public synchronized List<Customer> getWaitlistSnapshot() {
+    public List<Customer> getWaitlistSnapshot() {
         return new ArrayList<>(adoptionWaitlist);
     }
 
-    public synchronized Iterator<Pet> iterator() {
+    public Iterator<Pet> iterator() {
         return new ArrayList<>(petMap.values()).iterator();
     }
 }

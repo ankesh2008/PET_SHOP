@@ -72,7 +72,7 @@ public abstract class Pet implements Comparable<Pet>, Adoptable, Vaccinable {
     }
 
     // Static helper method
-    public static synchronized int peekNextId() {
+    public static int peekNextId() {
         return nextIdSequence;
     }
 

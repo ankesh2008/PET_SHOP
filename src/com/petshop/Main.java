@@ -1,9 +1,6 @@
 package com.petshop;
 
 import com.petshop.cli.MenuController;
-import com.petshop.concurrency.AdoptionQueue;
-import com.petshop.concurrency.HealthCheckScheduler;
-import com.petshop.concurrency.OrderWorker;
 import com.petshop.model.Bird;
 import com.petshop.model.Cat;
 import com.petshop.model.Dog;
@@ -21,7 +18,6 @@ import java.io.File;
  * Fully integrates:
  * - Unit 1: OOP Foundations & Custom Exception Hierarchy
  * - Unit 2: Collections Framework & Comparators
- * - Unit 3: Multithreading, Concurrency, Synchronized Blocks, and Schedulers
  * - Unit 4: Two-Phase Commit Transaction Management & Rollback
  * - Unit 5: Stream API, Lambda Analytics, and Pure File I/O
  */
@@ -47,41 +43,16 @@ public class Main {
             // 3. Initialize Analytics Engine (Unit 5: Stream API)
             AnalyticsService analyticsService = new AnalyticsService(petService);
 
-            // 4. Initialize Concurrency Infrastructure (Unit 3: Multithreading)
-            AdoptionQueue adoptionQueue = new AdoptionQueue(5);
-
-            OrderWorker workerRunnable = new OrderWorker(adoptionQueue, petService);
-            Thread workerThread = new Thread(workerRunnable, "OrderWorker-1");
-            workerThread.start();
-
-            HealthCheckScheduler healthScheduler = new HealthCheckScheduler(petService);
-            healthScheduler.startPeriodicHealthScan(3, 45);
-
-            // Register JVM Shutdown Hook for clean thread termination
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("\n[SHUTDOWN] Stopping background threads and closing resources...");
-                workerRunnable.stopWorker();
-                workerThread.interrupt();
-                healthScheduler.stop();
-                System.out.println("[SHUTDOWN] Clean exit complete.");
-            }));
-
             // Check if automated self-test or interactive CLI
             boolean isTestMode = args.length > 0 && args[0].equalsIgnoreCase("--test");
 
             if (isTestMode) {
-                runAutomatedSystemVerification(petService, analyticsService, adoptionQueue);
+                runAutomatedSystemVerification(petService, analyticsService);
                 System.out.println("\n[AUTOMATED TEST] Verification completed successfully. Exiting test mode.");
-                workerRunnable.stopWorker();
-                workerThread.interrupt();
-                healthScheduler.stop();
-                System.exit(0);
             } else {
-                // Launch Interactive CLI Loop (Unit VI: Guided Project)
-                MenuController menuController = new MenuController(
-                        petService, analyticsService, adoptionQueue, healthScheduler);
+                // Launch the single-threaded interactive CLI loop.
+                MenuController menuController = new MenuController(petService, analyticsService);
                 menuController.start();
-                System.exit(0);
             }
 
         } catch (Exception e) {
@@ -111,7 +82,7 @@ public class Main {
         }
     }
 
-    private static void runAutomatedSystemVerification(PetService service, AnalyticsService analytics, AdoptionQueue queue) {
+    private static void runAutomatedSystemVerification(PetService service, AnalyticsService analytics) {
         System.out.println("\n==============================================================");
         System.out.println("          RUNNING END-TO-END AUTOMATED VERIFICATION           ");
         System.out.println("==============================================================");
